@@ -1,2 +1,0 @@
-[console_scripts]
-validate-creds = advalidator.cli:main

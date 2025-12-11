@@ -1,9 +1,9 @@
+import argparse
 from .validator import validate_creds
 
-def main():
-    import argparse
 
-    parser = argparse.ArgumentParser(description="Validate Active Directory credentials.")
+def main():
+    parser = argparse.ArgumentParser(description="Active Directory Credential Validator")
     parser.add_argument("--user", required=True, help="Username or email")
     parser.add_argument("--password", required=True, help="Password")
 
