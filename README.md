@@ -150,7 +150,7 @@ No passwords are stored or logged beyond the process’ lifetime.
 - Only use this on **accounts you are legally allowed to test** (your own organization).  
 - Test credentials over secure internal networks whenever possible.  
 - Consider logging validation attempts securely for audit purposes.  
-- Do **not** integrate this into high-frequency password spraying tools — that would likely violate policy and law.
+- Do **not** integrate this into high-frequency password spraying tools that would likely violate policy and law.
 
 ---
 
