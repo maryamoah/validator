@@ -1,53 +1,21 @@
 #!/usr/bin/env python3
-"""
-Simple Active Directory Credential Checker
-------------------------------------------
-
-This script verifies whether a provided username + password
-successfully authenticate against Active Directory using NTLM.
-
-Usage:
-    python validate_ad_creds.py <email_or_username> <password>
-
-Environment:
-    AD_SERVER   → e.g. "dc01.example.com"
-    AD_DOMAIN   → e.g. "EXAMPLE"
-"""
-
-from ldap3 import Server, Connection, NTLM, ALL
-import os
 import sys
+from ldap3 import Server, Connection, NTLM, ALL
 
-# -------------------------------
-# Configuration (safe for GitHub)
-# -------------------------------
-AD_SERVER = os.getenv("AD_SERVER")
-AD_DOMAIN = os.getenv("AD_DOMAIN")
+AD_SERVER = "squdc11.squ.edu.om"   # <-- your DC
+AD_DOMAIN = "SQU"                  # <-- your domain NETBIOS name
 
 
-def normalise_username(user: str) -> str:
-    """
-    Accepts:
-      - email (user@example.com)
-      - username
-      - DOMAIN\username
-    Returns:
-      DOMAIN\username in NTLM format
-    """
-    user = user.strip()
-
-    if "\\" in user:
-        return user  # already DOMAIN\username
-
-    if "@" in user:
-        user = user.split("@")[0]  # convert email → username
-
-    return f"{AD_DOMAIN}\\{user}"
+def normalize_username(username: str) -> str:
+    """Convert email → DOMAIN\\username, username → DOMAIN\\username."""
+    if "@" in username:
+        username = username.split("@")[0]
+    return f"{AD_DOMAIN}\\{username}"
 
 
-def validate_creds(user: str, password: str) -> bool:
-    full_user = normalise_username(user)
-
+def validate_creds(username: str, password: str) -> bool:
+    """Validate one credential pair."""
+    full_user = normalize_username(username)
     server = Server(AD_SERVER, get_info=ALL)
 
     try:
@@ -58,27 +26,72 @@ def validate_creds(user: str, password: str) -> bool:
             authentication=NTLM,
             raise_exceptions=True
         )
-
         return conn.bind()
 
     except Exception:
         return False
 
 
+def load_from_file(path: str):
+    """Load credentials from a text file: 'user pass' per line."""
+    creds = []
+    try:
+        with open(path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                parts = line.split()
+                if len(parts) >= 2:
+                    creds.append((parts[0], parts[1]))
+    except FileNotFoundError:
+        print(f"[ERROR] File not found: {path}")
+    return creds
+
+
+def parse_args(argv):
+    """
+    Determine whether user supplied:
+      - single user & pass
+      - many creds via CLI
+      - a text file
+    """
+    creds = []
+
+    if len(argv) == 2:
+        # Only one argument → treat as file path
+        return load_from_file(argv[1])
+
+    # Otherwise treat each arg as user:pass
+    for pair in argv[1:]:
+        if ":" not in pair:
+            print(f"[WARN] Skipping invalid entry: {pair}")
+            continue
+        user, pwd = pair.split(":", 1)
+        creds.append((user, pwd))
+
+    return creds
+
+
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: python validate_ad_creds.py <email_or_username> <password>")
-        sys.exit(1)
+    if len(sys.argv) < 2:
+        print("Usage:")
+        print("  python validate_ad_creds.py user:pass user2:pass2 ...")
+        print("  python validate_ad_creds.py creds.txt   # file mode")
+        return
 
-    user = sys.argv[1]
-    password = sys.argv[2]
+    creds = parse_args(sys.argv)
 
-    print(f"[INFO] Testing credentials for: {user}")
+    print(f"[INFO] Loaded {len(creds)} credentials\n")
 
-    if validate_creds(user, password):
-        print("[RESULT] ✅ VALID CREDS (Correct username + password)")
-    else:
-        print("[RESULT] ❌ INVALID CREDS (User not found OR wrong password)")
+    for user, pwd in creds:
+        print(f"[CHECK] {user} ... ", end="")
+        valid = validate_creds(user, pwd)
+
+        if valid:
+            print("✅ VALID")
+        else:
+            print("❌ INVALID")
 
 
 if __name__ == "__main__":
