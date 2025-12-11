@@ -117,39 +117,6 @@ python validate_ad_creds.py "EXAMPLE\\alice" MySecretPassword123
 
 ## 🔍 How it works (internals)
 
-The core logic (simplified):
-
-```python
-from ldap3 import Server, Connection, NTLM, ALL
-
-AD_SERVER = "dc1.example.local"
-
-def validate_creds(username, password):
-    # If in email form, strip domain part (alice@example.com → alice)
-    if "@" in username:
-        username = username.split("@")[0]
-
-    full_user = f"EXAMPLE\\{username}"
-
-    server = Server(AD_SERVER, get_info=ALL)
-
-    try:
-        conn = Connection(
-            server,
-            user=full_user,
-            password=password,
-            authentication=NTLM,
-            raise_exceptions=True
-        )
-
-        if conn.bind():
-            return True
-    except Exception:
-        return False
-
-    return False
-```
-
 The script:
 
 1. Normalizes the username  
